@@ -2,6 +2,7 @@
 log/*
 tmp
 tmp/*
+!data/.gitkeep
 data/*
 config/configmaps/*
 passenger*.pid

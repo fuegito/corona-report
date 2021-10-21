@@ -76,7 +76,7 @@ Numo.gnuplot do |g|
        [data.map { |d| d[:datum] }, data.map { |d| d[:icu_occupied_cov19_pcr_negative] }, using: "1:2", with: "lines", title: "ICU beds Cov-19 PCR negative"],
        [data.map { |d| d[:datum] }, data.map { |d| d[:icu_occupied_cov19_pcr_positive] }, using: "1:2", with: "lines", title: "ICU beds Cov-19 PCR positive"],
        [data.map { |d| d[:datum] }, data.map { |d| d[:icu_cov19sari_ventilated] }, using: "1:2", with: "lines", title: "ICU beds with ventilated Cov-19 SARI cases"]
-  
+
   # jpeg
   begin
     set term: "jpeg font \"arial,12\" linewidth 2 size 2400,1200"
