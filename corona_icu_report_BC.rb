@@ -9,14 +9,14 @@ Dir.chdir(MyDir)
 
 Data_dir = "./data"
 Graphs_dir = "./graphs"
-Report_basepath = File.join(Graphs_dir, "corona_icu_report_DE")
+Report_basepath = File.join(Graphs_dir, "corona_icu_report_BC")
 
 data = []
 csv = CsvHash.read(File.join(Data_dir, "zeitreihe-tagesdaten.csv"))
 Data_range = Date.parse(csv.first["date"])..Date.parse(csv.last["date"])
 
 Data_range.each do |date|
-  daily_csv = csv.select { |x| x["date"] == date.to_s }
+  daily_csv = csv.select { |x| x["gemeindeschluessel"] == "08426" }.select { |x| x["date"] == date.to_s }
   icu_beds_occupied = daily_csv.sum { |x| x["betten_belegt"].to_i }
   icu_beds_free = daily_csv.sum { |x| x["betten_frei"].to_i }
   icu_occupied_cov19_pcr_positive = daily_csv.sum { |x| x["faelle_covid_aktuell"].to_i }
@@ -40,10 +40,11 @@ end
 
 Numo.gnuplot do |g|
   set term: "pdf color enhanced font \"arial,40\" linewidth 10 size 500.0cm,84cm"
+  # set term: "pdf color enhanced font \"arial,40\" linewidth 10 size 118.9cm,84cm"
   set output: "#{Report_basepath}.pdf"
   set xlabel: "date"
   set ylabel: "amount of ICU beds"
-  set title: "ICU beds report / Germany"
+  set title: "ICU beds report / Biberach"
   set "grid"
   set "xdata time"
   set "xtics timedate"
@@ -51,10 +52,11 @@ Numo.gnuplot do |g|
   set "timefmt \"#{Time_Format}\""
   set "format x \"%Y.%m\"" # \"#{Time_Format}\""
   set "xrange [\"#{Data_range.first.strftime(Time_Format)}\":\"#{Data_range.last.strftime(Time_Format)}\"]"
+  # set "xtics (#{Data_range.step(7).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
   set "xtics (#{Data_range.step(30).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
   # set "x2tics (#{Data_range.step(7).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
-  set "ytics 1000"
-  set "y2tics 1000"
+  set "ytics 1"
+  set "y2tics 1"
   set "autoscale"
   plot [data.map { |d| d[:datum] }, data.map { |d| d[:icu_beds_total] }, using: "1:2", with: "lines", title: "ICU beds total"],
        [data.map { |d| d[:datum] }, data.map { |d| d[:icu_beds_occupied] }, using: "1:2", with: "lines", title: "ICU beds occupied"],

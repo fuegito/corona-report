@@ -2,28 +2,42 @@ require "bundler"
 Bundler.setup
 Bundler.require
 
+if ARGV.size == 2
+  Data_range = Date.parse(ARGV[0])..Date.parse(ARGV[1])
+else
+  raise("Usage ruby #{$0} <Start-Date> <End-Date>")
+end
+
 Time_Format = "%Y-%m-%d"
 
 MyDir = File.expand_path(File.dirname(__FILE__))
 Dir.chdir(MyDir)
 
+Data_file_ctime = "12-15"
+Data_file_ext = "csv"
+Data_file_base = "DIVI-Intensivregister"
 Data_dir = "./data"
 Graphs_dir = "./graphs"
 Report_basepath = File.join(Graphs_dir, "corona_icu_report_DE")
 
+def data_filename(_date)
+  day = Date.parse(_date).strftime(Time_Format)
+  "#{Data_file_base}_#{day}_#{Data_file_ctime}.#{Data_file_ext}"
+end
+
 data = []
-csv = CsvHash.read(File.join(Data_dir, "zeitreihe-tagesdaten.csv"))
-Data_range = Date.parse(csv.first["date"])..Date.parse(csv.last["date"])
 
 Data_range.each do |date|
-  daily_csv = csv.select { |x| x["date"] == date.to_s }
-  icu_beds_occupied = daily_csv.sum { |x| x["betten_belegt"].to_i }
-  icu_beds_free = daily_csv.sum { |x| x["betten_frei"].to_i }
-  icu_occupied_cov19_pcr_positive = daily_csv.sum { |x| x["faelle_covid_aktuell"].to_i }
-  icu_cov19sari_ventilated = daily_csv.sum { |x| x["faelle_covid_aktuell_invasiv_beatmet"].to_i }
+  day = date.strftime(Time_Format)
+  csv = CsvHash.read(File.join(Data_dir, data_filename(day)))
+  # gm_s = ->(x) { x["gemeindeschluessel"] == "08426" }
+  icu_beds_occupied = csv.sum { |x| x["betten_belegt"].to_i }
+  icu_beds_free = csv.sum { |x| x["betten_frei"].to_i }
+  icu_occupied_cov19_pcr_positive = csv.sum { |x| x["faelle_covid_aktuell"].to_i }
+  icu_cov19sari_ventilated = csv.sum { |x| x["faelle_covid_aktuell_beatmet"].to_i }
   icu_beds_total = icu_beds_occupied + icu_beds_free
   icu_occupied_cov19_pcr_negative = icu_beds_occupied - icu_occupied_cov19_pcr_positive
-  dataset = {
+  data << {
     datum: date.strftime(Time_Format),
     icu_beds_total: icu_beds_total,
     icu_beds_occupied: icu_beds_occupied,
@@ -31,15 +45,16 @@ Data_range.each do |date|
     icu_occupied_cov19_pcr_positive: icu_occupied_cov19_pcr_positive,
     icu_cov19sari_ventilated: icu_cov19sari_ventilated,
     icu_occupied_cov19_pcr_negative: icu_occupied_cov19_pcr_negative,
-    anteil_betten_nicht_corona_in_prozent: icu_beds_total.zero? ? 0.0 : (icu_occupied_cov19_pcr_negative.to_f/icu_beds_total.to_f*100).round,
-    anteil_betten_corona_in_prozent: icu_beds_total.zero? ? 0.0 : (icu_occupied_cov19_pcr_positive.to_f/icu_beds_total.to_f*100).round,
-    anteil_betten_corona_beatmet_in_prozent: icu_beds_total.zero? ? 0.0 : (icu_cov19sari_ventilated.to_f/icu_beds_total.to_f*100).round
+    anteil_betten_nicht_corona_in_prozent: (icu_occupied_cov19_pcr_negative.to_f/icu_beds_total.to_f*100).round,
+    anteil_betten_corona_in_prozent: (icu_occupied_cov19_pcr_positive.to_f/icu_beds_total.to_f*100).round,
+    anteil_betten_corona_beatmet_in_prozent: (icu_cov19sari_ventilated.to_f/icu_beds_total.to_f*100).round
   }
-  data << dataset
+rescue Errno::ENOENT # file not found, means no data available for this day
+  next
 end
 
 Numo.gnuplot do |g|
-  set term: "pdf color enhanced font \"arial,40\" linewidth 10 size 500.0cm,84cm"
+  set term: "pdf color enhanced font \"arial,40\" linewidth 10 size 118.9cm,84cm"
   set output: "#{Report_basepath}.pdf"
   set xlabel: "date"
   set ylabel: "amount of ICU beds"
@@ -47,11 +62,11 @@ Numo.gnuplot do |g|
   set "grid"
   set "xdata time"
   set "xtics timedate"
-  set "xtics format \"%Y.%m\""
+  set "xtics format \"%d.%m.\""
   set "timefmt \"#{Time_Format}\""
-  set "format x \"%Y.%m\"" # \"#{Time_Format}\""
+  set "format x \"%d.%m.\"" # \"#{Time_Format}\""
   set "xrange [\"#{Data_range.first.strftime(Time_Format)}\":\"#{Data_range.last.strftime(Time_Format)}\"]"
-  set "xtics (#{Data_range.step(30).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
+  set "xtics (#{Data_range.step(7).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
   # set "x2tics (#{Data_range.step(7).to_a.map { |d| "\"#{d.strftime(Time_Format)}\"" }.join(', ')})"
   set "ytics 1000"
   set "y2tics 1000"
